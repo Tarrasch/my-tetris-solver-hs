@@ -5,7 +5,7 @@ import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Char (ord, chr)
-import Data.List (foldl', maximumBy, nub)
+import Data.List (foldl', maximumBy, nub, scanl')
 import Data.Maybe (fromJust, fromMaybe)
 import Control.Monad (msum, guard)
 import Data.Ord
@@ -18,7 +18,8 @@ data Coord = Coord Int Int  -- y and x
   deriving (Eq, Show, Ord)
 newtype Figure = Figure (Set Coord) -- Should always be 4 elements
   deriving (Eq, Show)
-data Board = Board Size (Map Coord Int) -- (coord -> ix of figure there)
+type Mapping = Map Coord Int  -- (coord -> ix of figure there)
+data Board = Board Size Mapping
   deriving (Eq, Show)
 data State = State Board [[Figure]] -- remaining figures
    deriving (Eq, Show)
@@ -28,7 +29,7 @@ type Solution = Board  -- Altough it should be fully covered
 
 emptyBoard size = Board size Map.empty
 
-mkFigure (y0, x0) (y1, x1) (y2, x2) (y3, x3) = 
+mkFigure (y0, x0) (y1, x1) (y2, x2) (y3, x3) =
         Figure $ Set.fromList [
                 Coord y0 x0,
                 Coord y1 x1,
@@ -70,7 +71,9 @@ solveLoop round (State board (placements_:placementss')) = msum $ do
     guard $ all (not . flip Map.member mapping) (coords placement)
     let insertRound = \m k -> Map.insert k round m
     let newMapping = foldl' insertRound mapping (coords placement)
-    return $ solveLoop (round + 1) (State (Board sz newMapping) placementss')
+    let newBoard = Board sz newMapping
+    guard $ floodFillCheck newBoard
+    return $ solveLoop (round + 1) (State newBoard placementss')
   where
     (Board sz mapping) = board
 
@@ -91,7 +94,7 @@ rotations figure0 = nub [Figure (Set.map (incFunction figure) (coords figure)) |
   where incFunction figure = incBy (negate $ minY figure) (negate $ minX figure)
         rots = [Figure (Set.map rotf (coords figure0)) | rotf <- rotfs]
 placements (Size n m) figure = [Figure (Set.map f (coords figure)) | f <- incFunctions]
-  where incFunctions = [incBy y x | y <- [0..maxN], x <- [0..maxM]] 
+  where incFunctions = [incBy y x | y <- [0..maxN], x <- [0..maxM]]
         maxN = n - 1 - maxY figure
         maxM = m - 1 - maxX figure
 coords (Figure coords_) = coords_
@@ -100,7 +103,7 @@ rps sz figure = do
     placement <- placements sz rotation
     return placement
 
-formatSolution :: Solution -> String 
+formatSolution :: Solution -> String
 formatSolution (Board (Size n m) mapping) = unlines allLines
   where
     allLines = reverse [formatLine y | y <- [0..n-1]]
@@ -108,6 +111,23 @@ formatSolution (Board (Size n m) mapping) = unlines allLines
     chrFromZero val = chr $ (ord 'A') + val
     charAt y x = chrFromZero $ fromJust $ Map.lookup (Coord y x) mapping
 
-go problem = putStrLn $ fromMaybe "No solution :(" $ fmap formatSolution $ solveProblem problem
+floodFillCheck :: Board -> Bool
+floodFillCheck (Board sz mapping0) = all divisibleBy4 (map snd subSteps)
+  where foldf (mapping, _num) coord = floodFill sz mapping coord
+        subSteps = scanl' foldf (mapping0, 0) (allCoords sz)
+        divisibleBy4 = (== 0) . (`mod` 4)
+
+allCoords (Size n m) = [Coord y x | y <- [0..n-1], x <- [0..m-1]]
+inBound (Size n m) (Coord y x) = 0 <= y && y < n && 0 <= x && x < m
+neighbours (Coord y x) = [Coord (y+1) x, Coord y (x+1), Coord (y-1) x, Coord y (x-1)]
+
+floodFill :: Size -> Mapping -> Coord -> (Mapping, Int)
+floodFill sz mapping0 coord0 | not isOk  = (mapping0, 0)
+                             | otherwise = foldl' foldf (Map.insert coord0 (-1) mapping0, 1) (neighbours coord0)
+  where foldf (mapping, num) coord = fmap (+num) $ floodFill sz mapping coord
+        isOk = inBound sz coord0 && (not $ Map.member coord0 mapping0)
+
+humanSolve = fromMaybe "No solution :(" . fmap formatSolution . solveProblem
+go = putStrLn . humanSolve
 
 main = go problem_9
