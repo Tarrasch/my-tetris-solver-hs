@@ -57,6 +57,21 @@ problem_9  = Problem (Size 6 8) [figureT, figureT, figureSquare,
                                  figureSquare, figureI, figureL,
                                  figureL, figureTurnedL, figureTurnedL,
                                  figureTurnedL, figureS, figureS]
+problem_10 = Problem (Size 10 4) [figureT, figureT,
+                                  figureT, figureT,
+                                  figureTurnedS, figureTurnedS,
+                                  figureS, figureI,
+                                  figureI, figureTurnedL]
+problem_11 = Problem (Size 4 7) [figureI, figureI,
+                                 figureT, figureT,
+                                 figureTurnedS, figureS,
+                                 figureL]
+problem_12 = Problem (Size 6 8) [figureI, figureT,
+                                 figureT, figureSquare, figureSquare,
+                                 figureS, figureTurnedS, figureTurnedS,
+                                 figureTurnedS, figureTurnedL, figureTurnedL,
+                                 figureTurnedL]
+
 
 solveProblem :: Problem -> Maybe Solution
 solveProblem = solveLoop 0 . initialState
@@ -130,4 +145,4 @@ floodFill sz mapping0 coord0 | not isOk  = (mapping0, 0)
 humanSolve = fromMaybe "No solution :(" . fmap formatSolution . solveProblem
 go = putStrLn . humanSolve
 
-main = go problem_9
+main = go problem_12
